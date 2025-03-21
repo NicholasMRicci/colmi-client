@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Nick's Heartrate</title>
+</head>
+
+<body>
+    <h1>Nick's Heartrate</h1>
+    <!-- Center this veritcally and horizontally in large font -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 50vh; font-size: 5em;">
+        <p id="heartrate">0</p>
+    </div>
+</body>
+
+<script>
+    onWindowLoad = function () {
+        console.log('Window loaded');
+    }
+    // Get the heartrate element
+    const heartrateElement = document.getElementById('heartrate');
+
+    // Establish websocket connection to get heartrate data\
+    var loc = window.location, new_uri;
+    if (loc.protocol === "https:") {
+        new_uri = "wss:";
+    } else {
+        new_uri = "ws:";
+    }
+    new_uri += "//" + loc.host;
+    new_uri += loc.pathname + "bpm";
+    const socket = new WebSocket(new_uri);
+    socket.addEventListener('message', function (event) {
+        // Update the heartrate element with the new data
+        console.log(event);
+        // Remove quotes from data
+        heartrateElement.innerText = event.data.replace(/"/g, '');
+    });
+    socket.addEventListener('open', function (event) {
+        console.log('WebSocket conn ection established');
+    });
+    socket.addEventListener('close', function (event) {
+        console.log('WebSocket connection closed');
+    });
+
+</script>
+
+</html>

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/NicholasMRicci/colmi-client/lib/message"
 	"tinygo.org/x/bluetooth"
 )
 
@@ -23,7 +24,7 @@ func AquireRing(BLE *bluetooth.Adapter, name string) (Ring, error) {
 		}
 	})
 	if err != nil {
-		panic(err)
+		return Ring{}, err
 	}
 
 	conn := Must1(BLE.Connect(found.Address, bluetooth.ConnectionParams{}))
@@ -41,38 +42,38 @@ func AquireRing(BLE *bluetooth.Adapter, name string) (Ring, error) {
 	return Ring{tx: characteristics[0], rx: characteristics[1], disconnect: conn.Disconnect}, nil
 }
 
-func (r Ring) Send(msg Message) error {
+func (r Ring) Send(msg message.Message) error {
 	log.Println("Sending Message")
-	crc := msg.tag
-	if len(msg.data) != 14 {
-		return errors.New("wrong data size")
+	bytes, err := msg.GetBytes()
+	if err != nil {
+		return err
 	}
-	for _, piece := range msg.data {
-		crc += piece
-	}
-	bytes := make([]byte, 0, 16)
-	bytes = append(bytes, msg.tag)
-	bytes = append(bytes, msg.data...)
-	bytes = append(bytes, crc)
-	r.tx.Write(bytes)
+	r.tx.WriteWithoutResponse(bytes)
 
 	return nil
 }
 
-func (r Ring) Read() Message {
-	recv := make([]byte, 16)
-	n, err := r.rx.Read(recv)
-	if n != 16 || err != nil {
-		panic(err)
+func (r Ring) BeginReads(data chan message.Message) error {
+	if r.messageChan != nil {
+		return errors.New("Handler already registered")
 	}
-	calcedCrc := byte(0)
-	for _, val := range recv {
-		calcedCrc += val
+	return r.rx.EnableNotifications(func(buf []byte) {
+		msg, err := message.FromBytes(buf)
+		if err != nil && len(buf) != 0 {
+			log.Printf("Bad message idk what to do %v", msg)
+		}
+		if len(buf) != 16 {
+			log.Printf("Bad message idk what to do %v", msg)
+		}
+		data <- msg
+	})
+}
+
+func (r Ring) StopReads() error {
+	if r.messageChan == nil {
+		return errors.New("No reads right now")
 	}
-	if calcedCrc != recv[15] {
-		panic("CRC Mismatch")
-	}
-	return Message{tag: recv[0], data: recv[1:14]}
+	return r.rx.EnableNotifications(nil)
 }
 
 func (r Ring) Disconnect() error {

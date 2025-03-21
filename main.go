@@ -1,19 +1,25 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/NicholasMRicci/colmi-client/lib"
-	"github.com/NicholasMRicci/colmi-client/lib/messages"
 	"tinygo.org/x/bluetooth"
 )
 
 func main() {
 	lib.Must(bluetooth.DefaultAdapter.Enable())
 
-	// Start scanning.
-	ring, err := lib.AquireRing(bluetooth.DefaultAdapter, "")
-	lib.Must(err)
-	defer func() { lib.Must(ring.Disconnect()) }()
-
-	lib.Must(ring.Send(messages.BlinkTwice()))
-
+	server := lib.NewServer()
+	server.Start()
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	<-sigc
+	server.Stop()
 }

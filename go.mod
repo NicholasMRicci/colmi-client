@@ -2,7 +2,10 @@ module github.com/NicholasMRicci/colmi-client
 
 go 1.24.0
 
-require tinygo.org/x/bluetooth v0.11.0
+require (
+	github.com/gorilla/websocket v1.5.3
+	tinygo.org/x/bluetooth v0.11.0
+)
 
 require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
